@@ -1,4 +1,5 @@
 require 'nokogiri'
+require 'pry'
 
 module ActiveMerchant
   module Billing
@@ -77,9 +78,9 @@ module ActiveMerchant
 
       def purchase(money, payment_method, options = {})
         payment_method_details = PaymentMethodDetails.new(payment_method)
+        idempotency_key(options)
 
         commit(:purchase, :post, payment_method_details) do |doc|
-          binding.pry
           if payment_method_details.alt_transaction?
             add_alt_transaction_purchase(doc, money, payment_method_details, options)
           else
@@ -385,10 +386,6 @@ module ActiveMerchant
         doc.send('account-type', BANK_ACCOUNT_TYPE_MAPPING["#{check.account_holder_type}_#{check.account_type}"])
       end
 
-      def add_idempotency_key(options)
-        "Idempotency-Key:#{options[:idempotency_key]}" if options[:idempotency_key]
-      end
-
       def parse(response)
         return bad_authentication_response if response.code.to_i == 401
         return generic_error_response(response.body) if [403, 429].include?(response.code.to_i)
@@ -397,7 +394,6 @@ module ActiveMerchant
         doc = Nokogiri::XML(response.body)
         doc.root.xpath('*').each do |node|
           name = node.name.downcase
-
           if node.elements.empty?
             parsed[name] = node.text
           elsif name == 'transaction-meta-data'
@@ -540,13 +536,17 @@ module ActiveMerchant
         action == :store ? 'vaulted-shopper' : payment_method_details.root_element
       end
 
+      def idempotency_key(options)
+        @options[:idempotency_key] = options[:idempoptency_key] if options[:idempotency_key]
+      end
+
       def headers
         headers = {
           'Content-Type' => 'application/xml',
           'Authorization' => ('Basic ' + Base64.strict_encode64("#{@options[:api_username]}:#{@options[:api_password]}").strip)
         }
-
-        headers['Idempotency-Key'] = options[:idempotency_key] if options[:idempotency_key]
+        headers['Idempotency-Key'] = @options[:idempotency_key] if @options[:idempotency_key]
+        headers
       end
 
       def build_xml_request(action, payment_method_details)
