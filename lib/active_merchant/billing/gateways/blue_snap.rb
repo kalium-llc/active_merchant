@@ -78,9 +78,8 @@ module ActiveMerchant
 
       def purchase(money, payment_method, options = {})
         payment_method_details = PaymentMethodDetails.new(payment_method)
-        idempotency_key(options)
 
-        commit(:purchase, :post, payment_method_details) do |doc|
+        commit(:purchase, :post, payment_method_details, options) do |doc|
           if payment_method_details.alt_transaction?
             add_alt_transaction_purchase(doc, money, payment_method_details, options)
           else
@@ -151,7 +150,7 @@ module ActiveMerchant
 
       def verify_credentials
         begin
-          ssl_get(url.to_s, headers)
+          ssl_get(url.to_s, headers(options))
         rescue ResponseError => e
           return false if e.response.code.to_i == 401
         end
@@ -434,15 +433,15 @@ module ActiveMerchant
         end
       end
 
-      def api_request(action, request, verb, payment_method_details)
-        ssl_request(verb, url(action, payment_method_details), request, headers)
+      def api_request(action, request, verb, payment_method_details, options)
+        ssl_request(verb, url(action, payment_method_details), request, headers(options))
       rescue ResponseError => e
         e.response
       end
 
-      def commit(action, verb = :post, payment_method_details = PaymentMethodDetails.new())
+      def commit(action, verb = :post, payment_method_details = PaymentMethodDetails.new(), options)
         request = build_xml_request(action, payment_method_details) { |doc| yield(doc) }
-        response = api_request(action, request, verb, payment_method_details)
+        response = api_request(action, request, verb, payment_method_details, options)
         parsed = parse(response)
 
         succeeded = success_from(action, response)
@@ -536,16 +535,15 @@ module ActiveMerchant
         action == :store ? 'vaulted-shopper' : payment_method_details.root_element
       end
 
-      def idempotency_key(options)
-        @options[:idempotency_key] = options[:idempoptency_key] if options[:idempotency_key]
-      end
+      def headers(options)
+        idempotency_key = options[:idempotency_key]
 
-      def headers
         headers = {
           'Content-Type' => 'application/xml',
           'Authorization' => ('Basic ' + Base64.strict_encode64("#{@options[:api_username]}:#{@options[:api_password]}").strip)
         }
-        headers['Idempotency-Key'] = @options[:idempotency_key] if @options[:idempotency_key]
+
+        headers['Idempotency-Key'] = idempotency_key if idempotency_key
         headers
       end
 
