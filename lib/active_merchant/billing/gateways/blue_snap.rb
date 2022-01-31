@@ -89,13 +89,13 @@ module ActiveMerchant
       end
 
       def authorize(money, payment_method, options = {})
-        commit(:authorize) do |doc|
+        commit(:authorize, options) do |doc|
           add_auth_purchase(doc, money, payment_method, options)
         end
       end
 
       def capture(money, authorization, options = {})
-        commit(:capture, :put) do |doc|
+        commit(:capture, :put, options) do |doc|
           add_authorization(doc, authorization)
           add_order(doc, options)
           add_amount(doc, money, options) if options[:include_capture_amount] == true
@@ -103,7 +103,7 @@ module ActiveMerchant
       end
 
       def refund(money, authorization, options = {})
-        commit(:refund, :put) do |doc|
+        commit(:refund, :put, options) do |doc|
           add_authorization(doc, authorization)
           add_amount(doc, money, options)
           add_order(doc, options)
@@ -111,7 +111,7 @@ module ActiveMerchant
       end
 
       def void(authorization, options = {})
-        commit(:void, :put) do |doc|
+        commit(:void, :put, options) do |doc|
           add_authorization(doc, authorization)
           add_order(doc, options)
         end
