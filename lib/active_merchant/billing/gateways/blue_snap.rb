@@ -79,7 +79,7 @@ module ActiveMerchant
       def purchase(money, payment_method, options = {})
         payment_method_details = PaymentMethodDetails.new(payment_method)
 
-        commit(:purchase, :post, payment_method_details, options) do |doc|
+        commit(:purchase, options, :post, payment_method_details) do |doc|
           if payment_method_details.alt_transaction?
             add_alt_transaction_purchase(doc, money, payment_method_details, options)
           else
@@ -95,7 +95,7 @@ module ActiveMerchant
       end
 
       def capture(money, authorization, options = {})
-        commit(:capture, :put, options) do |doc|
+        commit(:capture, options, :put) do |doc|
           add_authorization(doc, authorization)
           add_order(doc, options)
           add_amount(doc, money, options) if options[:include_capture_amount] == true
@@ -103,7 +103,7 @@ module ActiveMerchant
       end
 
       def refund(money, authorization, options = {})
-        commit(:refund, :put, options) do |doc|
+        commit(:refund, options, :put) do |doc|
           add_authorization(doc, authorization)
           add_amount(doc, money, options)
           add_order(doc, options)
@@ -111,7 +111,7 @@ module ActiveMerchant
       end
 
       def void(authorization, options = {})
-        commit(:void, :put, options) do |doc|
+        commit(:void, options, :put) do |doc|
           add_authorization(doc, authorization)
           add_order(doc, options)
         end
@@ -124,7 +124,7 @@ module ActiveMerchant
       def store(payment_method, options = {})
         payment_method_details = PaymentMethodDetails.new(payment_method)
 
-        commit(:store, :post, payment_method_details) do |doc|
+        commit(:store, options, :post, payment_method_details) do |doc|
           add_personal_info(doc, payment_method, options)
           add_echeck_company(doc, payment_method) if payment_method_details.check?
           doc.send('payment-sources') do
@@ -439,7 +439,7 @@ module ActiveMerchant
         e.response
       end
 
-      def commit(action, verb = :post, payment_method_details = PaymentMethodDetails.new(), options)
+      def commit(action, options, verb = :post, payment_method_details = PaymentMethodDetails.new())
         request = build_xml_request(action, payment_method_details) { |doc| yield(doc) }
         response = api_request(action, request, verb, payment_method_details, options)
         parsed = parse(response)
@@ -536,7 +536,7 @@ module ActiveMerchant
       end
 
       def headers(options)
-        idempotency_key = options[:idempotency_key]
+        idempotency_key = options[:idempotency_key] if options[:idempotency_key]
 
         headers = {
           'Content-Type' => 'application/xml',
