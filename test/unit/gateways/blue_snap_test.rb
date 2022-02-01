@@ -544,7 +544,7 @@ class BlueSnapTest < Test::Unit::TestCase
   end
 
   def test_optional_idempotency_key_header
-    response = stub_comms(@gateway, :raw_ssl_request) do
+    stub_comms(@gateway, :raw_ssl_request) do
       @gateway.purchase(@amount, @credit_card, @options.merge({ idempotency_key: 'test123' }))
     end.check_request do |_method, _url, _data, headers|
       assert_equal 'test123', headers['Idempotency-Key']
